@@ -2,81 +2,45 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, user-scalable=no"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>放課後つみつみ消しゴム</title>
 
   <link rel="stylesheet" href="style.css" />
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap"
-    rel="stylesheet"
-  >
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
 </head>
 <body>
-
-  <!-- タイトル -->
   <div id="titleScreen" class="screen active">
-    <img src="title.png" id="titleImage">
-
-    <div class="titleText">
-      タップしてスタート
-    </div>
+    <img src="title.png" id="titleImage" alt="放課後つみつみ消しゴム">
+    <div class="titleText">タップしてスタート</div>
   </div>
 
-  <!-- ゲーム -->
   <div id="gameScreen" class="screen">
-
     <div id="topUI">
-
-      <div id="heightText">
-        0.0m
-      </div>
-
-      <button id="backBtn">
-        タイトルへ戻る
-      </button>
-
+      <div id="heightText">0.0m</div>
+      <button id="backBtn">タイトルへ戻る</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
+    <div id="controlArea">
+      <button id="leftBtn">←</button>
+      <button id="dropBtn">落下</button>
+      <button id="rightBtn">→</button>
+    </div>
   </div>
 
-  <!-- リザルト -->
   <div id="resultScreen" class="screen">
-
-    <div id="resultTitle">
-      RESULT
-    </div>
-
-    <div id="resultHeight">
-      0.0m
-    </div>
-
-    <div id="rankText">
-      放課後積み名人
-    </div>
-
-    <button id="retryBtn">
-      もう1回
-    </button>
-
-    <button id="shareBtn">
-      Xでシェア
-    </button>
-
-    <button id="homeBtn">
-      カバゲーセンへ
-    </button>
-
+    <div id="resultTitle">RESULT</div>
+    <div id="resultHeight">0.0m</div>
+    <div id="rankText">放課後積み名人</div>
+    <button id="retryBtn">もう1回</button>
+    <button id="shareBtn">Xでシェア</button>
+    <button id="rankingBtn">ランキング登録</button>
+    <button id="homeBtn">カバゲーセンへ</button>
   </div>
 
   <audio src="bgm.mp3" id="bgm" loop></audio>
@@ -85,6 +49,5 @@
   <audio src="collapse.mp3" id="collapseSe"></audio>
 
   <script src="game.js"></script>
-
 </body>
 </html>
