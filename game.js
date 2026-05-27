@@ -20,7 +20,6 @@ const collapseSe = document.getElementById("collapseSe");
 
 let W, H, dpr;
 let engine, runner;
-let floor, leftWall, rightWall;
 
 let currentBody = null;
 let isHolding = false;
@@ -34,6 +33,7 @@ let targetCameraY = 0;
 let gameOver = false;
 let moveLeft = false;
 let moveRight = false;
+let placedCount = 0;
 
 const FLOOR_Y_BASE_OFFSET = 118;
 const SPAWN_SCREEN_Y = 130;
@@ -97,14 +97,17 @@ function bindHold(btn, down, up) {
   btn.addEventListener("mousedown", down);
   btn.addEventListener("mouseup", up);
   btn.addEventListener("mouseleave", up);
+
   btn.addEventListener("touchstart", e => {
     e.preventDefault();
     down();
   }, { passive: false });
+
   btn.addEventListener("touchend", e => {
     e.preventDefault();
     up();
   }, { passive: false });
+
   btn.addEventListener("touchcancel", up);
 }
 
@@ -122,6 +125,7 @@ function resizeCanvas() {
   canvas.height = Math.floor(H * dpr);
   canvas.style.width = W + "px";
   canvas.style.height = H + "px";
+
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
@@ -137,6 +141,7 @@ function startGame() {
   cameraY = 0;
   targetCameraY = 0;
   holderX = W / 2;
+  placedCount = 0;
   startTime = Date.now();
 
   if (runner) Runner.stop(runner);
@@ -163,18 +168,18 @@ function startGame() {
 function createStage() {
   const floorY = H - FLOOR_Y_BASE_OFFSET;
 
-  floor = Bodies.rectangle(W / 2, floorY, W * 1.4, 34, {
+  const floor = Bodies.rectangle(W / 2, floorY, W * 1.4, 34, {
     isStatic: true,
     label: "floor",
     friction: 1
   });
 
-  leftWall = Bodies.rectangle(-28, floorY - 4000, 56, 8000, {
+  const leftWall = Bodies.rectangle(-28, floorY - 5000, 56, 10000, {
     isStatic: true,
     label: "wall"
   });
 
-  rightWall = Bodies.rectangle(W + 28, floorY - 4000, 56, 8000, {
+  const rightWall = Bodies.rectangle(W + 28, floorY - 5000, 56, 10000, {
     isStatic: true,
     label: "wall"
   });
@@ -188,16 +193,20 @@ function spawnEraser() {
   const data = erasers[Math.floor(Math.random() * erasers.length)];
   holderX = W / 2;
 
-  const worldY = cameraY + SPAWN_SCREEN_Y;
-
-  currentBody = Bodies.rectangle(holderX, worldY, data.bodyW, data.bodyH, {
-    label: data.name,
-    friction: data.friction,
-    frictionStatic: 0.98,
-    restitution: 0.03,
-    density: data.density,
-    render: { visible: false }
-  });
+  currentBody = Bodies.rectangle(
+    holderX,
+    cameraY + SPAWN_SCREEN_Y,
+    data.bodyW,
+    data.bodyH,
+    {
+      label: data.name,
+      friction: data.friction,
+      frictionStatic: 0.98,
+      restitution: 0.03,
+      density: data.density,
+      render: { visible: false }
+    }
+  );
 
   currentBody.gameData = data;
   currentBody.isEraser = true;
@@ -212,6 +221,10 @@ function dropCurrent() {
   if (!currentBody || !isHolding || gameOver) return;
 
   currentBody.isCurrent = false;
+  currentBody.justDroppedAt = Date.now();
+
+  placedCount++;
+
   Body.setStatic(currentBody, false);
   Body.setAngularVelocity(currentBody, (Math.random() - 0.5) * 0.025);
 
@@ -237,17 +250,27 @@ function updateGame() {
       x: holderX,
       y: cameraY + SPAWN_SCREEN_Y
     });
+
     Body.setVelocity(currentBody, { x: 0, y: 0 });
     Body.setAngle(currentBody, 0);
     Body.setAngularVelocity(currentBody, 0);
   }
 
-  const bodies = Composite.allBodies(engine.world).filter(b => b.isEraser && !b.isCurrent);
+  const allPlacedBodies = Composite.allBodies(engine.world)
+    .filter(b => b.isEraser && !b.isCurrent);
+
+  const stableBodies = allPlacedBodies.filter(b => {
+    const age = Date.now() - (b.justDroppedAt || 0);
+    const speed = Math.abs(b.velocity.x) + Math.abs(b.velocity.y);
+    const angular = Math.abs(b.angularVelocity);
+
+    return age > 900 && speed < 1.2 && angular < 0.08;
+  });
 
   const floorY = H - FLOOR_Y_BASE_OFFSET;
   let highestY = floorY;
 
-  bodies.forEach(body => {
+  stableBodies.forEach(body => {
     highestY = Math.min(highestY, body.bounds.min.y);
   });
 
@@ -258,7 +281,7 @@ function updateGame() {
 
   const highestScreenY = highestY - cameraY;
 
-  if (highestScreenY < H * 0.35) {
+  if (stableBodies.length > 0 && highestScreenY < H * 0.35) {
     targetCameraY = highestY - H * 0.35;
   }
 
@@ -268,14 +291,18 @@ function updateGame() {
 
   if (
     elapsed > GRACE_TIME &&
+    placedCount >= 4 &&
     bestHeight >= 2.5 &&
     bestHeight - stackHeight >= COLLAPSE_DROP_M
   ) {
     endGame();
   }
 
-  bodies.forEach(body => {
-    if (body.position.y - cameraY > H + 300) {
+  allPlacedBodies.forEach(body => {
+    if (
+      placedCount >= 4 &&
+      body.position.y - cameraY > H + 300
+    ) {
       endGame();
     }
   });
@@ -322,6 +349,7 @@ function drawBackground() {
     }
 
     const bgScroll = -(cameraY * 0.15) % H;
+
     ctx.drawImage(bgImage, dx, dy + bgScroll, dw, dh);
     ctx.drawImage(bgImage, dx, dy + bgScroll - H, dw, dh);
     ctx.drawImage(bgImage, dx, dy + bgScroll + H, dw, dh);
@@ -348,7 +376,6 @@ function drawEraser(body) {
   ctx.save();
   ctx.translate(screenX, screenY);
   ctx.rotate(body.angle);
-
   ctx.imageSmoothingEnabled = false;
 
   if (img && img.complete && img.naturalWidth > 0) {
