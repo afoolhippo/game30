@@ -301,14 +301,15 @@ function updateGame() {
   }
 
   allPlacedBodies.forEach(body => {
-    const screenY = body.position.y - cameraY;
-    const outLeft = body.position.x < tableX - 120;
-    const outRight = body.position.x > tableX + tableW + 120;
-    const outBottom = screenY > H + 220;
+const outLeft = body.position.x < tableX - 140;
+const outRight = body.position.x > tableX + tableW + 140;
 
-    if (placedCount >= 3 && (outLeft || outRight || outBottom)) {
-      endGame();
-    }
+// 画面基準ではなく、机の実座標より下に落ちたかで判定
+const outBottom = body.position.y > tableY + 260;
+
+if (placedCount >= 4 && (outLeft || outRight || outBottom)) {
+  endGame();
+}
   });
 }
 
