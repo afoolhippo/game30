@@ -27,28 +27,48 @@ body {
 }
 
 #titleScreen {
-  background: linear-gradient(#bdf4ff, #7edcff);
-  align-items: flex-start;
-  justify-content: center;
+  background: linear-gradient(#c9f6ff, #8ee5ff);
+  align-items: center;
+  justify-content: flex-start;
   flex-direction: column;
-  padding-top: 18px;
+  padding: 14px 14px 0;
 }
 
 #titleImage {
   width: 94vw;
   max-width: 520px;
-  margin: 0 auto;
   display: block;
   image-rendering: pixelated;
+  cursor: pointer;
 }
 
-.titleText {
-  margin: 18px auto 0;
-  padding: 10px 18px;
-  font-size: 18px;
+.ruleBox {
+  width: 90vw;
+  max-width: 440px;
+  margin-top: 14px;
+  padding: 14px 12px;
+  text-align: center;
+  line-height: 1.55;
+  font-size: 16px;
   background: rgba(255,255,255,0.78);
   border: 2px solid #2b7890;
-  border-radius: 12px;
+  border-radius: 14px;
+}
+
+#startBtn {
+  margin-top: 14px;
+  padding: 13px 24px;
+  border: 3px solid #2b7890;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.92);
+  color: #233;
+  font-size: 18px;
+  box-shadow: 0 5px 0 #5cb4c9;
+}
+
+#startBtn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #5cb4c9;
 }
 
 #gameScreen {
@@ -80,7 +100,7 @@ body {
 
 #heightText {
   font-size: 21px;
-  background: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.82);
   border: 2px solid #2b7890;
   padding: 7px 11px;
   border-radius: 10px;
@@ -93,7 +113,7 @@ body {
   border: 2px solid #2b7890;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.88);
+  background: rgba(255,255,255,0.9);
   font-size: 12px;
   color: #233;
 }
@@ -115,7 +135,7 @@ body {
   height: 58px;
   border: 3px solid #2b7890;
   border-radius: 16px;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.92);
   color: #233;
   font-size: 22px;
   box-shadow: 0 5px 0 #5cb4c9;
@@ -131,27 +151,27 @@ body {
 }
 
 #resultScreen {
-  background: linear-gradient(#bdf4ff, #7edcff);
+  background: linear-gradient(#c9f6ff, #8ee5ff);
   text-align: center;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   flex-direction: column;
-  padding: 18px;
+  padding: 42px 18px 18px;
 }
 
 #resultTitle {
   font-size: 36px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 #resultHeight {
-  font-size: 34px;
+  font-size: 36px;
   margin-bottom: 12px;
 }
 
 #rankText {
   font-size: 18px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 #resultScreen button {
@@ -162,6 +182,6 @@ body {
   border: 2px solid #2b7890;
   border-radius: 13px;
   font-size: 17px;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.92);
   color: #233;
 }

@@ -35,11 +35,16 @@ let moveLeft = false;
 let moveRight = false;
 let placedCount = 0;
 
-const FLOOR_Y_BASE_OFFSET = 118;
+let tableX = 0;
+let tableY = 0;
+let tableW = 0;
+let tableH = 0;
+
+const FLOOR_Y_BASE_OFFSET = 126;
 const SPAWN_SCREEN_Y = 130;
 const MOVE_SPEED = 7;
 const COLLAPSE_DROP_M = 2.0;
-const GRACE_TIME = 2500;
+const GRACE_TIME = 2800;
 
 let startTime = 0;
 
@@ -61,8 +66,13 @@ erasers.forEach(e => {
   images[e.name].src = e.img;
 });
 
-document.getElementById("titleScreen").addEventListener("click", startGame);
-document.getElementById("retryBtn").addEventListener("click", startGame);
+document.getElementById("titleImage").addEventListener("click", startGame);
+document.getElementById("startBtn").addEventListener("click", startGame);
+
+document.getElementById("retryBtn").addEventListener("click", () => {
+  bgm.pause();
+  showScreen(titleScreen);
+});
 
 document.getElementById("backBtn").addEventListener("click", () => {
   bgm.pause();
@@ -127,6 +137,11 @@ function resizeCanvas() {
   canvas.style.height = H + "px";
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  tableW = Math.min(W * 0.84, 360);
+  tableH = 34;
+  tableX = (W - tableW) / 2;
+  tableY = H - FLOOR_Y_BASE_OFFSET;
 }
 
 window.addEventListener("resize", resizeCanvas);
@@ -166,25 +181,15 @@ function startGame() {
 }
 
 function createStage() {
-  const floorY = H - FLOOR_Y_BASE_OFFSET;
+  tableY = H - FLOOR_Y_BASE_OFFSET;
 
-  const floor = Bodies.rectangle(W / 2, floorY, W * 1.4, 34, {
+  const floor = Bodies.rectangle(W / 2, tableY, tableW, tableH, {
     isStatic: true,
     label: "floor",
     friction: 1
   });
 
-  const leftWall = Bodies.rectangle(-28, floorY - 5000, 56, 10000, {
-    isStatic: true,
-    label: "wall"
-  });
-
-  const rightWall = Bodies.rectangle(W + 28, floorY - 5000, 56, 10000, {
-    isStatic: true,
-    label: "wall"
-  });
-
-  Composite.add(engine.world, [floor, leftWall, rightWall]);
+  Composite.add(engine.world, [floor]);
 }
 
 function spawnEraser() {
@@ -222,7 +227,6 @@ function dropCurrent() {
 
   currentBody.isCurrent = false;
   currentBody.justDroppedAt = Date.now();
-
   placedCount++;
 
   Body.setStatic(currentBody, false);
@@ -244,7 +248,7 @@ function updateGame() {
     if (moveRight) holderX += MOVE_SPEED;
 
     const data = currentBody.gameData;
-    holderX = Math.max(data.w / 2 + 10, Math.min(W - data.w / 2 - 10, holderX));
+    holderX = Math.max(data.w / 2 + 8, Math.min(W - data.w / 2 - 8, holderX));
 
     Body.setPosition(currentBody, {
       x: holderX,
@@ -263,18 +267,16 @@ function updateGame() {
     const age = Date.now() - (b.justDroppedAt || 0);
     const speed = Math.abs(b.velocity.x) + Math.abs(b.velocity.y);
     const angular = Math.abs(b.angularVelocity);
-
     return age > 900 && speed < 1.2 && angular < 0.08;
   });
 
-  const floorY = H - FLOOR_Y_BASE_OFFSET;
-  let highestY = floorY;
+  let highestY = tableY;
 
   stableBodies.forEach(body => {
     highestY = Math.min(highestY, body.bounds.min.y);
   });
 
-  stackHeight = Math.max(0, (floorY - highestY) / 70);
+  stackHeight = Math.max(0, (tableY - highestY) / 70);
   bestHeight = Math.max(bestHeight, stackHeight);
 
   heightText.textContent = `${bestHeight.toFixed(1)}m`;
@@ -285,7 +287,7 @@ function updateGame() {
     targetCameraY = highestY - H * 0.35;
   }
 
-  cameraY += (targetCameraY - cameraY) * 0.08;
+  cameraY += (targetCameraY - cameraY) * 0.07;
 
   const elapsed = Date.now() - startTime;
 
@@ -299,10 +301,12 @@ function updateGame() {
   }
 
   allPlacedBodies.forEach(body => {
-    if (
-      placedCount >= 4 &&
-      body.position.y - cameraY > H + 300
-    ) {
+    const screenY = body.position.y - cameraY;
+    const outLeft = body.position.x < tableX - 120;
+    const outRight = body.position.x > tableX + tableW + 120;
+    const outBottom = screenY > H + 220;
+
+    if (placedCount >= 3 && (outLeft || outRight || outBottom)) {
       endGame();
     }
   });
@@ -321,7 +325,9 @@ function draw() {
   if (!gameScreen.classList.contains("active")) return;
 
   ctx.clearRect(0, 0, W, H);
+
   drawBackground();
+  drawTableGuide();
 
   const bodies = Composite.allBodies(engine.world).filter(b => b.isEraser);
   bodies.forEach(drawEraser);
@@ -330,40 +336,54 @@ function draw() {
 }
 
 function drawBackground() {
+  ctx.fillStyle = "#9ee8ff";
+  ctx.fillRect(0, 0, W, H);
+
   if (bgImage.complete && bgImage.naturalWidth > 0) {
-    const imgRatio = bgImage.naturalWidth / bgImage.naturalHeight;
-    const canvasRatio = W / H;
+    const bgW = Math.min(W * 0.82, 340);
+    const bgH = bgW * (bgImage.naturalHeight / bgImage.naturalWidth);
+    const bgX = (W - bgW) / 2;
+    const bgY = 78;
 
-    let dw, dh, dx, dy;
-
-    if (imgRatio > canvasRatio) {
-      dh = H;
-      dw = H * imgRatio;
-      dx = (W - dw) / 2;
-      dy = 0;
-    } else {
-      dw = W;
-      dh = W / imgRatio;
-      dx = 0;
-      dy = (H - dh) / 2;
-    }
-
-    const bgScroll = -(cameraY * 0.15) % H;
-
-    ctx.drawImage(bgImage, dx, dy + bgScroll, dw, dh);
-    ctx.drawImage(bgImage, dx, dy + bgScroll - H, dw, dh);
-    ctx.drawImage(bgImage, dx, dy + bgScroll + H, dw, dh);
-  } else {
-    ctx.fillStyle = "#9ee8ff";
-    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(bgImage, bgX, bgY, bgW, bgH);
+    ctx.restore();
   }
+}
 
-  const floorScreenY = H - FLOOR_Y_BASE_OFFSET - cameraY;
+function drawTableGuide() {
+  const screenTableY = tableY - cameraY;
 
-  if (floorScreenY > -50 && floorScreenY < H + 50) {
-    ctx.fillStyle = "rgba(255,255,255,0.25)";
-    ctx.fillRect(0, floorScreenY, W, 8);
-  }
+  const scaleBack = Math.min(bestHeight / 18, 1);
+  const visualW = tableW * (1 - scaleBack * 0.16);
+  const visualH = tableH * (1 - scaleBack * 0.22);
+  const x = (W - visualW) / 2;
+
+  let y = screenTableY;
+
+  if (y > H - 128) y = H - 128;
+  if (y < H - 168) y = H - 168;
+
+  ctx.save();
+
+  ctx.fillStyle = "#c98a4a";
+  ctx.fillRect(x, y, visualW, visualH);
+
+  ctx.strokeStyle = "#74421f";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x, y, visualW, visualH);
+
+  ctx.fillStyle = "#f0c27d";
+  ctx.fillRect(x + 6, y + 6, visualW - 12, 6);
+
+  ctx.fillStyle = "#74421f";
+  ctx.font = "14px DotGothic16";
+  ctx.textAlign = "center";
+  ctx.fillText("机のはしに注意！", W / 2, y - 8);
+
+  ctx.restore();
 }
 
 function drawEraser(body) {
