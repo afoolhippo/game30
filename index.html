@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div id="titleScreen" class="screen active">
@@ -41,14 +42,15 @@
   </div>
 
   <div id="resultScreen" class="screen">
-    <div id="resultTitle">RESULT</div>
-    <div id="resultHeight">0.0m</div>
-    <div id="rankText">つみつみ見習い</div>
+    <img id="resultImage" src="result_bad.png" alt="結果">
+    <div id="resultScore">0.0m</div>
 
-    <button id="retryBtn">もう1回遊ぶ</button>
-    <button id="shareBtn">Xでシェア</button>
-    <button id="rankingBtn">ランキング登録</button>
-    <button id="homeBtn">カバゲーセンへ</button>
+    <div id="resultButtons" class="resultButtons hidden">
+      <button id="shareButton" class="resultButton">Xでシェア</button>
+      <button id="registerButton" class="resultButton">記録を登録</button>
+      <button id="retryButton" class="resultButton">もう1回遊ぶ</button>
+      <button id="arcadeButton" class="resultButton">カバゲーセンへ</button>
+    </div>
   </div>
 
   <audio src="bgm.mp3" id="bgm" loop></audio>
@@ -56,6 +58,6 @@
   <audio src="hit.mp3" id="hitSe"></audio>
   <audio src="collapse.mp3" id="collapseSe"></audio>
 
-  <script src="game.js"></script>
+  <script src="game.js?v=20260528-2"></script>
 </body>
 </html>
