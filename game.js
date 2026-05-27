@@ -1,6 +1,11 @@
-const {
-  Engine, Runner, Bodies, Body, Composite, Events
-} = Matter;
+const { Engine, Runner, Bodies, Body, Composite, Events } = Matter;
+
+const GAME_ID = "game30";
+const GAME_TITLE = "放課後つみつみ消しゴム";
+
+const SUPABASE_URL = "https://gmncxnybsovlallxgnkd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ly3h5OhL8HDSHhYdmJq_Fw_9pG3mhla";
+const kabaDb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const titleScreen = document.getElementById("titleScreen");
 const gameScreen = document.getElementById("gameScreen");
@@ -10,8 +15,14 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const heightText = document.getElementById("heightText");
-const resultHeight = document.getElementById("resultHeight");
-const rankText = document.getElementById("rankText");
+const resultImage = document.getElementById("resultImage");
+const resultScore = document.getElementById("resultScore");
+const resultButtons = document.getElementById("resultButtons");
+
+const shareButton = document.getElementById("shareButton");
+const registerButton = document.getElementById("registerButton");
+const retryButton = document.getElementById("retryButton");
+const arcadeButton = document.getElementById("arcadeButton");
 
 const bgm = document.getElementById("bgm");
 const dropSe = document.getElementById("dropSe");
@@ -20,7 +31,6 @@ const collapseSe = document.getElementById("collapseSe");
 
 let W, H, dpr;
 let engine, runner;
-
 let currentBody = null;
 let isHolding = false;
 let holderX = 0;
@@ -34,6 +44,8 @@ let gameOver = false;
 let moveLeft = false;
 let moveRight = false;
 let placedCount = 0;
+let scoreRegistered = false;
+let lastTitle = "つみつみ見習い";
 
 let tableX = 0;
 let tableY = 0;
@@ -69,7 +81,7 @@ erasers.forEach(e => {
 document.getElementById("titleImage").addEventListener("click", startGame);
 document.getElementById("startBtn").addEventListener("click", startGame);
 
-document.getElementById("retryBtn").addEventListener("click", () => {
+retryButton.addEventListener("click", () => {
   bgm.pause();
   showScreen(titleScreen);
 });
@@ -79,20 +91,29 @@ document.getElementById("backBtn").addEventListener("click", () => {
   showScreen(titleScreen);
 });
 
-document.getElementById("homeBtn").addEventListener("click", () => {
+arcadeButton.addEventListener("click", () => {
   location.href = "https://afoolhippo.github.io/home/?skipTitle=1";
 });
 
-document.getElementById("rankingBtn").addEventListener("click", () => {
-  alert("ランキング機能は後ほど実装予定です");
-});
+shareButton.addEventListener("click", () => {
+  const text =
+`放課後つみつみ消しゴム🦛🥒🍆
 
-document.getElementById("shareBtn").addEventListener("click", () => {
-  const text = `放課後つみつみ消しゴムで ${bestHeight.toFixed(1)}m 積めた！ #カバゲーセン`;
+${lastTitle}！
+${bestHeight.toFixed(1)}m積めた！
+
+無料ブラウザゲーム
+https://afoolhippo.github.io/game30/
+
+#放課後つみつみ消しゴム
+#カバゲーセン`;
+
   window.open(
-    `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.href)}`
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
   );
 });
+
+registerButton.addEventListener("click", registerScore);
 
 bindHold(document.getElementById("leftBtn"), () => moveLeft = true, () => moveLeft = false);
 bindHold(document.getElementById("rightBtn"), () => moveRight = true, () => moveRight = false);
@@ -107,23 +128,69 @@ function bindHold(btn, down, up) {
   btn.addEventListener("mousedown", down);
   btn.addEventListener("mouseup", up);
   btn.addEventListener("mouseleave", up);
-
   btn.addEventListener("touchstart", e => {
     e.preventDefault();
     down();
   }, { passive: false });
-
   btn.addEventListener("touchend", e => {
     e.preventDefault();
     up();
   }, { passive: false });
-
   btn.addEventListener("touchcancel", up);
 }
 
 function showScreen(target) {
   [titleScreen, gameScreen, resultScreen].forEach(s => s.classList.remove("active"));
   target.classList.add("active");
+}
+
+function showResultButtonsLater() {
+  resultButtons.classList.add("hidden");
+  setTimeout(() => {
+    resultButtons.classList.remove("hidden");
+  }, 1500);
+}
+
+function resetRegisterButton() {
+  scoreRegistered = false;
+  registerButton.disabled = false;
+  registerButton.textContent = "記録を登録";
+  resultButtons.classList.add("hidden");
+}
+
+async function registerScore() {
+  if (scoreRegistered) {
+    alert("この記録は登録済みです");
+    return;
+  }
+
+  const nickname = prompt("ニックネームを入力してね", "匿名カバ");
+  if (!nickname) return;
+
+  registerButton.disabled = true;
+  registerButton.textContent = "登録中...";
+
+  const { error } = await kabaDb
+    .from("kaba_scores")
+    .insert({
+      game_id: GAME_ID,
+      game_title: GAME_TITLE,
+      nickname: nickname,
+      rank_title: lastTitle,
+      score: Number(bestHeight.toFixed(1))
+    });
+
+  if (error) {
+    console.error(error);
+    registerButton.disabled = false;
+    registerButton.textContent = "記録を登録";
+    alert("登録に失敗しました");
+    return;
+  }
+
+  scoreRegistered = true;
+  registerButton.textContent = "登録済み";
+  alert("記録を登録しました！");
 }
 
 function resizeCanvas() {
@@ -149,6 +216,7 @@ resizeCanvas();
 
 function startGame() {
   showScreen(gameScreen);
+  resetRegisterButton();
 
   gameOver = false;
   stackHeight = 0;
@@ -157,6 +225,7 @@ function startGame() {
   targetCameraY = 0;
   holderX = W / 2;
   placedCount = 0;
+  lastTitle = "つみつみ見習い";
   startTime = Date.now();
 
   if (runner) Runner.stop(runner);
@@ -301,15 +370,13 @@ function updateGame() {
   }
 
   allPlacedBodies.forEach(body => {
-const outLeft = body.position.x < tableX - 140;
-const outRight = body.position.x > tableX + tableW + 140;
+    const outLeft = body.position.x < tableX - 140;
+    const outRight = body.position.x > tableX + tableW + 140;
+    const outBottom = body.position.y > tableY + 260;
 
-// 画面基準ではなく、机の実座標より下に落ちたかで判定
-const outBottom = body.position.y > tableY + 260;
-
-if (placedCount >= 4 && (outLeft || outRight || outBottom)) {
-  endGame();
-}
+    if (placedCount >= 4 && (outLeft || outRight || outBottom)) {
+      endGame();
+    }
   });
 }
 
@@ -326,7 +393,6 @@ function draw() {
   if (!gameScreen.classList.contains("active")) return;
 
   ctx.clearRect(0, 0, W, H);
-
   drawBackground();
   drawTableGuide();
 
@@ -363,12 +429,10 @@ function drawTableGuide() {
   const x = (W - visualW) / 2;
 
   let y = screenTableY;
-
   if (y > H - 128) y = H - 128;
   if (y < H - 168) y = H - 168;
 
   ctx.save();
-
   ctx.fillStyle = "#c98a4a";
   ctx.fillRect(x, y, visualW, visualH);
 
@@ -383,7 +447,6 @@ function drawTableGuide() {
   ctx.font = "14px DotGothic16";
   ctx.textAlign = "center";
   ctx.fillText("机のはしに注意！", W / 2, y - 8);
-
   ctx.restore();
 }
 
@@ -416,17 +479,22 @@ function endGame() {
   bgm.pause();
   playSe(collapseSe);
 
-  resultHeight.textContent = `${bestHeight.toFixed(1)}m`;
+  if (bestHeight >= 10) {
+    lastTitle = "つみ神";
+    resultImage.src = "result_good.png";
+  } else if (bestHeight >= 5) {
+    lastTitle = "つみつみ職人";
+    resultImage.src = "result_normal.png";
+  } else {
+    lastTitle = "つみつみ見習い";
+    resultImage.src = "result_bad.png";
+  }
 
-  let title = "つみつみ見習い";
-  if (bestHeight >= 20) title = "消しゴム神";
-  else if (bestHeight >= 10) title = "積み職人";
-  else if (bestHeight >= 5) title = "放課後積み名人";
-
-  rankText.textContent = title;
+  resultScore.textContent = `${bestHeight.toFixed(1)}m`;
 
   setTimeout(() => {
     showScreen(resultScreen);
+    showResultButtonsLater();
   }, 700);
 }
 
