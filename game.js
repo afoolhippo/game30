@@ -5,7 +5,7 @@ const GAME_TITLE = "放課後つみつみ消しゴム";
 
 const SUPABASE_URL = "https://gmncxnybsovlallxgnkd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ly3h5OhL8HDSHhYdmJq_Fw_9pG3mhla";
-const kabaDb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const kabaDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const titleScreen = document.getElementById("titleScreen");
 const gameScreen = document.getElementById("gameScreen");
