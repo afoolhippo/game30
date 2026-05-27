@@ -1,10 +1,5 @@
 const {
-  Engine,
-  Runner,
-  Bodies,
-  Body,
-  Composite,
-  Events
+  Engine, Runner, Bodies, Body, Composite, Events
 } = Matter;
 
 const titleScreen = document.getElementById("titleScreen");
@@ -23,28 +18,30 @@ const dropSe = document.getElementById("dropSe");
 const hitSe = document.getElementById("hitSe");
 const collapseSe = document.getElementById("collapseSe");
 
-let W = 0;
-let H = 0;
-let dpr = 1;
-
-let engine;
-let runner;
-let floor;
-let leftWall;
-let rightWall;
+let W, H, dpr;
+let engine, runner;
+let floor, leftWall, rightWall;
 
 let currentBody = null;
-let currentData = null;
 let isHolding = false;
 let holderX = 0;
 
 let stackHeight = 0;
-let gameOver = false;
-let fallenCount = 0;
+let bestHeight = 0;
+let cameraY = 0;
+let targetCameraY = 0;
 
-const FALL_LIMIT = 2;
-const SPAWN_Y = 128;
+let gameOver = false;
+let moveLeft = false;
+let moveRight = false;
+
+const FLOOR_Y_BASE_OFFSET = 118;
+const SPAWN_SCREEN_Y = 130;
 const MOVE_SPEED = 7;
+const COLLAPSE_DROP_M = 2.0;
+const GRACE_TIME = 2500;
+
+let startTime = 0;
 
 const bgImage = new Image();
 bgImage.src = "bg_classroom.png";
@@ -52,61 +49,11 @@ bgImage.src = "bg_classroom.png";
 const images = {};
 
 const erasers = [
-  {
-    name: "kaba",
-    img: "kaba.png",
-    w: 92,
-    h: 52,
-    bodyW: 82,
-    bodyH: 42,
-    friction: 0.9,
-    restitution: 0.05,
-    density: 0.0014
-  },
-  {
-    name: "wooper",
-    img: "wooper.png",
-    w: 86,
-    h: 48,
-    bodyW: 74,
-    bodyH: 36,
-    friction: 0.82,
-    restitution: 0.08,
-    density: 0.0011
-  },
-  {
-    name: "imori",
-    img: "imori.png",
-    w: 112,
-    h: 38,
-    bodyW: 94,
-    bodyH: 24,
-    friction: 0.72,
-    restitution: 0.06,
-    density: 0.00095
-  },
-  {
-    name: "kyuri",
-    img: "kyuri.png",
-    w: 122,
-    h: 30,
-    bodyW: 104,
-    bodyH: 22,
-    friction: 0.62,
-    restitution: 0.05,
-    density: 0.0009
-  },
-  {
-    name: "nasu",
-    img: "nasu.png",
-    w: 70,
-    h: 98,
-    bodyW: 52,
-    bodyH: 78,
-    friction: 0.86,
-    restitution: 0.05,
-    density: 0.0012
-  }
+  { name: "kaba", img: "kaba.png", w: 86, h: 46, bodyW: 86, bodyH: 46, friction: 0.9, density: 0.0014 },
+  { name: "wooper", img: "wooper.png", w: 82, h: 42, bodyW: 82, bodyH: 42, friction: 0.85, density: 0.0011 },
+  { name: "imori", img: "imori.png", w: 104, h: 28, bodyW: 104, bodyH: 28, friction: 0.78, density: 0.001 },
+  { name: "kyuri", img: "kyuri.png", w: 114, h: 24, bodyW: 114, bodyH: 24, friction: 0.68, density: 0.0009 },
+  { name: "nasu", img: "nasu.png", w: 66, h: 84, bodyW: 66, bodyH: 84, friction: 0.86, density: 0.0012 }
 ];
 
 erasers.forEach(e => {
@@ -131,24 +78,17 @@ document.getElementById("rankingBtn").addEventListener("click", () => {
 });
 
 document.getElementById("shareBtn").addEventListener("click", () => {
-  const text = `放課後つみつみ消しゴムで ${stackHeight.toFixed(1)}m 積めた！ #カバゲーセン`;
-  const url = location.href;
+  const text = `放課後つみつみ消しゴムで ${bestHeight.toFixed(1)}m 積めた！ #カバゲーセン`;
   window.open(
-    `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.href)}`
   );
 });
 
-const leftBtn = document.getElementById("leftBtn");
-const rightBtn = document.getElementById("rightBtn");
-const dropBtn = document.getElementById("dropBtn");
+bindHold(document.getElementById("leftBtn"), () => moveLeft = true, () => moveLeft = false);
+bindHold(document.getElementById("rightBtn"), () => moveRight = true, () => moveRight = false);
 
-let moveLeft = false;
-let moveRight = false;
-
-bindHold(leftBtn, () => moveLeft = true, () => moveLeft = false);
-bindHold(rightBtn, () => moveRight = true, () => moveRight = false);
-dropBtn.addEventListener("click", dropCurrent);
-dropBtn.addEventListener("touchstart", (e) => {
+document.getElementById("dropBtn").addEventListener("click", dropCurrent);
+document.getElementById("dropBtn").addEventListener("touchstart", e => {
   e.preventDefault();
   dropCurrent();
 }, { passive: false });
@@ -157,11 +97,11 @@ function bindHold(btn, down, up) {
   btn.addEventListener("mousedown", down);
   btn.addEventListener("mouseup", up);
   btn.addEventListener("mouseleave", up);
-  btn.addEventListener("touchstart", (e) => {
+  btn.addEventListener("touchstart", e => {
     e.preventDefault();
     down();
   }, { passive: false });
-  btn.addEventListener("touchend", (e) => {
+  btn.addEventListener("touchend", e => {
     e.preventDefault();
     up();
   }, { passive: false });
@@ -192,19 +132,17 @@ function startGame() {
   showScreen(gameScreen);
 
   gameOver = false;
-  fallenCount = 0;
   stackHeight = 0;
+  bestHeight = 0;
+  cameraY = 0;
+  targetCameraY = 0;
   holderX = W / 2;
-  isHolding = false;
-  currentBody = null;
-  currentData = null;
+  startTime = Date.now();
 
-  if (runner) {
-    Runner.stop(runner);
-  }
+  if (runner) Runner.stop(runner);
 
   engine = Engine.create();
-  engine.gravity.y = 0.55;
+  engine.gravity.y = 0.5;
 
   runner = Runner.create();
   Runner.run(runner, engine);
@@ -218,25 +156,25 @@ function startGame() {
   bgm.currentTime = 0;
   bgm.volume = 0.45;
   bgm.play().catch(() => {});
+
   requestAnimationFrame(draw);
 }
 
 function createStage() {
-  const floorY = H - 118;
+  const floorY = H - FLOOR_Y_BASE_OFFSET;
 
-  floor = Bodies.rectangle(W / 2, floorY, W * 1.2, 34, {
+  floor = Bodies.rectangle(W / 2, floorY, W * 1.4, 34, {
     isStatic: true,
     label: "floor",
-    friction: 1,
-    render: { visible: false }
+    friction: 1
   });
 
-  leftWall = Bodies.rectangle(-24, H / 2, 48, H, {
+  leftWall = Bodies.rectangle(-28, floorY - 4000, 56, 8000, {
     isStatic: true,
     label: "wall"
   });
 
-  rightWall = Bodies.rectangle(W + 24, H / 2, 48, H, {
+  rightWall = Bodies.rectangle(W + 28, floorY - 4000, 56, 8000, {
     isStatic: true,
     label: "wall"
   });
@@ -248,16 +186,16 @@ function spawnEraser() {
   if (gameOver) return;
 
   const data = erasers[Math.floor(Math.random() * erasers.length)];
-  currentData = data;
   holderX = W / 2;
 
-  currentBody = Bodies.rectangle(holderX, SPAWN_Y, data.bodyW, data.bodyH, {
+  const worldY = cameraY + SPAWN_SCREEN_Y;
+
+  currentBody = Bodies.rectangle(holderX, worldY, data.bodyW, data.bodyH, {
     label: data.name,
     friction: data.friction,
-    frictionStatic: 0.95,
-    restitution: data.restitution,
+    frictionStatic: 0.98,
+    restitution: 0.03,
     density: data.density,
-    angle: 0,
     render: { visible: false }
   });
 
@@ -275,14 +213,14 @@ function dropCurrent() {
 
   currentBody.isCurrent = false;
   Body.setStatic(currentBody, false);
-  Body.setAngularVelocity(currentBody, (Math.random() - 0.5) * 0.03);
+  Body.setAngularVelocity(currentBody, (Math.random() - 0.5) * 0.025);
 
   playSe(dropSe);
+
   isHolding = false;
   currentBody = null;
-  currentData = null;
 
-  setTimeout(spawnEraser, 680);
+  setTimeout(spawnEraser, 650);
 }
 
 function updateGame() {
@@ -293,46 +231,60 @@ function updateGame() {
     if (moveRight) holderX += MOVE_SPEED;
 
     const data = currentBody.gameData;
-    const minX = data.w / 2 + 12;
-    const maxX = W - data.w / 2 - 12;
-    holderX = Math.max(minX, Math.min(maxX, holderX));
+    holderX = Math.max(data.w / 2 + 10, Math.min(W - data.w / 2 - 10, holderX));
 
-    Body.setPosition(currentBody, { x: holderX, y: SPAWN_Y });
+    Body.setPosition(currentBody, {
+      x: holderX,
+      y: cameraY + SPAWN_SCREEN_Y
+    });
     Body.setVelocity(currentBody, { x: 0, y: 0 });
     Body.setAngle(currentBody, 0);
     Body.setAngularVelocity(currentBody, 0);
   }
 
-  const bodies = Composite.allBodies(engine.world).filter(b => b.isEraser);
+  const bodies = Composite.allBodies(engine.world).filter(b => b.isEraser && !b.isCurrent);
 
-  let highest = H - 118;
+  const floorY = H - FLOOR_Y_BASE_OFFSET;
+  let highestY = floorY;
 
   bodies.forEach(body => {
-    if (!body.isCurrent) {
-      highest = Math.min(highest, body.bounds.min.y);
-    }
-
-    if (!body.countedFallen && body.position.y > H + 80) {
-      body.countedFallen = true;
-      fallenCount++;
-      playSe(collapseSe);
-
-      if (fallenCount >= FALL_LIMIT) {
-        endGame();
-      }
-    }
+    highestY = Math.min(highestY, body.bounds.min.y);
   });
 
-  stackHeight = Math.max(0, ((H - 118 - highest) / 70));
-  heightText.textContent = `${stackHeight.toFixed(1)}m`;
+  stackHeight = Math.max(0, (floorY - highestY) / 70);
+  bestHeight = Math.max(bestHeight, stackHeight);
+
+  heightText.textContent = `${bestHeight.toFixed(1)}m`;
+
+  const highestScreenY = highestY - cameraY;
+
+  if (highestScreenY < H * 0.35) {
+    targetCameraY = highestY - H * 0.35;
+  }
+
+  cameraY += (targetCameraY - cameraY) * 0.08;
+
+  const elapsed = Date.now() - startTime;
+
+  if (
+    elapsed > GRACE_TIME &&
+    bestHeight >= 2.5 &&
+    bestHeight - stackHeight >= COLLAPSE_DROP_M
+  ) {
+    endGame();
+  }
+
+  bodies.forEach(body => {
+    if (body.position.y - cameraY > H + 300) {
+      endGame();
+    }
+  });
 }
 
 function handleCollision(event) {
   for (const pair of event.pairs) {
-    const a = pair.bodyA;
-    const b = pair.bodyB;
-    if ((a.isEraser || b.isEraser) && !gameOver) {
-      playSe(hitSe, 0.25);
+    if ((pair.bodyA.isEraser || pair.bodyB.isEraser) && !gameOver) {
+      playSe(hitSe, 0.22);
       break;
     }
   }
@@ -345,14 +297,9 @@ function draw() {
   drawBackground();
 
   const bodies = Composite.allBodies(engine.world).filter(b => b.isEraser);
+  bodies.forEach(drawEraser);
 
-  bodies.forEach(body => {
-    drawEraser(body);
-  });
-
-  if (!gameOver) {
-    requestAnimationFrame(draw);
-  }
+  if (!gameOver) requestAnimationFrame(draw);
 }
 
 function drawBackground() {
@@ -374,30 +321,41 @@ function drawBackground() {
       dy = (H - dh) / 2;
     }
 
-    ctx.drawImage(bgImage, dx, dy, dw, dh);
+    const bgScroll = -(cameraY * 0.15) % H;
+    ctx.drawImage(bgImage, dx, dy + bgScroll, dw, dh);
+    ctx.drawImage(bgImage, dx, dy + bgScroll - H, dw, dh);
+    ctx.drawImage(bgImage, dx, dy + bgScroll + H, dw, dh);
   } else {
     ctx.fillStyle = "#9ee8ff";
     ctx.fillRect(0, 0, W, H);
   }
 
-  ctx.fillStyle = "rgba(255,255,255,0.2)";
-  ctx.fillRect(0, H - 118, W, 8);
+  const floorScreenY = H - FLOOR_Y_BASE_OFFSET - cameraY;
+
+  if (floorScreenY > -50 && floorScreenY < H + 50) {
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.fillRect(0, floorScreenY, W, 8);
+  }
 }
 
 function drawEraser(body) {
   const data = body.gameData;
   const img = images[data.name];
 
+  const screenX = body.position.x;
+  const screenY = body.position.y - cameraY;
+
   ctx.save();
-  ctx.translate(body.position.x, body.position.y);
+  ctx.translate(screenX, screenY);
   ctx.rotate(body.angle);
 
+  ctx.imageSmoothingEnabled = false;
+
   if (img && img.complete && img.naturalWidth > 0) {
-    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, -data.w / 2, -data.h / 2, data.w, data.h);
   } else {
     ctx.fillStyle = "#fff";
-    ctx.fillRect(-data.bodyW / 2, -data.bodyH / 2, data.bodyW, data.bodyH);
+    ctx.fillRect(-data.w / 2, -data.h / 2, data.w, data.h);
   }
 
   ctx.restore();
@@ -408,13 +366,14 @@ function endGame() {
 
   gameOver = true;
   bgm.pause();
+  playSe(collapseSe);
 
-  resultHeight.textContent = `${stackHeight.toFixed(1)}m`;
+  resultHeight.textContent = `${bestHeight.toFixed(1)}m`;
 
-  let title = "放課後積み名人";
-  if (stackHeight >= 20) title = "消しゴム神";
-  else if (stackHeight >= 10) title = "積み職人";
-  else if (stackHeight >= 5) title = "つみつみ係";
+  let title = "つみつみ見習い";
+  if (bestHeight >= 20) title = "消しゴム神";
+  else if (bestHeight >= 10) title = "積み職人";
+  else if (bestHeight >= 5) title = "放課後積み名人";
 
   rankText.textContent = title;
 
