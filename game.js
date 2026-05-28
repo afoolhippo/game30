@@ -5,7 +5,7 @@ const GAME_TITLE = "放課後つみつみ消しゴム";
 
 const SUPABASE_URL = "https://gmncxnybsovlallxgnkd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ly3h5OhL8HDSHhYdmJq_Fw_9pG3mhla";
-const kabaDb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const kabaDb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const titleScreen = document.getElementById("titleScreen");
 const gameScreen = document.getElementById("gameScreen");
@@ -170,15 +170,17 @@ async function registerScore() {
   registerButton.disabled = true;
   registerButton.textContent = "登録中...";
 
-  const { error } = await kabaDb
-    .from("kaba_scores")
-    .insert({
-      game_id: GAME_ID,
-      game_title: GAME_TITLE,
-      nickname: nickname,
-      rank_title: lastTitle,
-      score: Number(bestHeight.toFixed(1))
-    });
+const scoreForRanking = Math.round(bestHeight * 10);
+
+const { error } = await kabaDb
+  .from("kaba_scores")
+  .insert({
+    game_id: GAME_ID,
+    game_title: GAME_TITLE,
+    nickname: nickname,
+    rank_title: `${lastTitle} ${bestHeight.toFixed(1)}m`,
+    score: scoreForRanking
+  });
 
   if (error) {
     console.error(error);
