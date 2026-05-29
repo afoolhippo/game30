@@ -362,15 +362,6 @@ function updateGame() {
 
   const elapsed = Date.now() - startTime;
 
-  if (
-    elapsed > GRACE_TIME &&
-    placedCount >= 4 &&
-    bestHeight >= 2.5 &&
-    bestHeight - stackHeight >= COLLAPSE_DROP_M
-  ) {
-    endGame();
-  }
-
   allPlacedBodies.forEach(body => {
     const outLeft = body.position.x < tableX - 140;
     const outRight = body.position.x > tableX + tableW + 140;
